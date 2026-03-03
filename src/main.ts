@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
@@ -20,8 +21,10 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  const server = await app.listen(0);
-  const port = server.address().port;
+  const configService = app.get(ConfigService);
+  const port = Number(configService.get<string>('PORT', '3000'));
+  const host = configService.get<string>('HOST', '0.0.0.0');
+  await app.listen(port, host);
   logger.log(`应用运行在: http://localhost:${port}`);
   logger.log(`API 文档: http://localhost:${port}/api`);
 }

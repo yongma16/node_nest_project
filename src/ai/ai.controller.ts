@@ -4,10 +4,12 @@ import { randomUUID } from 'crypto';
 import { AiService } from './models/openai/ai.service';
 import { KimiService } from './models/kimi/kimi.service';
 import { ChatCompletionRequestDto } from './models/openai/dto/chat-completion.dto';
+import { StepfunChatRequestDto } from './models/stepfun/dto/stepfun-chat.dto';
 import { KimiChatRequestDto, KimiChatResponseDto } from './models/kimi/dto/kimi-chat.dto';
 import { MultiTurnChatRequestDto, MultiTurnChatResponseDto } from './models/kimi/dto/multi-turn-chat.dto';
 import { KimiImageChatRequestDto } from './models/kimi/dto/kimi-image-chat.dto';
 import { KimiImageUrlChatRequestDto } from './models/kimi/dto/kimi-image-url-chat.dto';
+import { StepfunService } from './models/stepfun/stepfun.service';
 import { UsersService } from '../users/users.service';
 
 @ApiTags('AI Chat')
@@ -16,6 +18,7 @@ export class AiController {
   constructor(
     private readonly aiService: AiService,
     private readonly kimiService: KimiService,
+    private readonly stepfunService: StepfunService,
     private readonly usersService: UsersService,
   ) {}
 
@@ -58,6 +61,30 @@ export class AiController {
       userQueryContent: this.extractLastUserMessageContent(body.messages),
       aiReplyContent: response.choices?.[0]?.message?.content ?? '',
       aiModelType: response.model || body.model,
+      responseTimeMs: elapsedMs,
+    });
+
+    return {
+      ...response,
+      sessionId,
+    };
+  }
+
+  @Post('stepfun/chat')
+  @ApiOperation({ summary: 'StepFun Chat Completions (阶跃星辰对话)' })
+  @ApiResponse({ status: 200, description: 'Success' })
+  async stepfunChat(@Body() body: StepfunChatRequestDto): Promise<unknown> {
+    const sessionId = this.resolveSessionId(body.sessionId);
+    const startTime = Date.now();
+    const response = (await this.stepfunService.chatCompletion(body)) as Record<string, unknown>;
+    const elapsedMs = Date.now() - startTime;
+
+    await this.recordChatIfPossible({
+      userId: body.userId,
+      sessionId,
+      userQueryContent: this.extractLastUserMessageContent(body.messages),
+      aiReplyContent: this.extractOpenAiReply(response),
+      aiModelType: this.toStringValue(response.model) || body.model || 'step-1-8k',
       responseTimeMs: elapsedMs,
     });
 

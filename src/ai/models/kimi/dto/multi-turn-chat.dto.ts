@@ -2,6 +2,18 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { KimiMessage } from './kimi-chat.dto';
 
 export class MultiTurnChatRequestDto {
+  @ApiPropertyOptional({
+    description: '用户 ID（用于记录对话）',
+    example: 1,
+  })
+  userId?: number;
+
+  @ApiPropertyOptional({
+    description: '会话 ID（用于记录对话）',
+    example: 'session_20260303_001',
+  })
+  sessionId?: string;
+
   @ApiProperty({
     description: '用户当前消息',
     example: '你好，我想了解一下人工智能的发展历史',

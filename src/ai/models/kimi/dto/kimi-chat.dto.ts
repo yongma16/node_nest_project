@@ -6,6 +6,18 @@ export type KimiMessage = {
 };
 
 export class KimiChatRequestDto {
+  @ApiPropertyOptional({
+    description: '用户 ID（用于记录对话）',
+    example: 1,
+  })
+  userId?: number;
+
+  @ApiPropertyOptional({
+    description: '会话 ID（用于记录对话）',
+    example: 'session_20260303_001',
+  })
+  sessionId?: string;
+
   @ApiProperty({
     description: 'Kimi 模型名称',
     enum: [

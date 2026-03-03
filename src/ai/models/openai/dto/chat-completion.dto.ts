@@ -8,6 +8,18 @@ export type ChatCompletionMessage = {
 
 export class ChatCompletionRequestDto {
   @ApiPropertyOptional({
+    description: '用户 ID（用于记录对话）',
+    example: 1,
+  })
+  userId?: number;
+
+  @ApiPropertyOptional({
+    description: '会话 ID（用于记录对话）',
+    example: 'session_20260303_001',
+  })
+  sessionId?: string;
+
+  @ApiPropertyOptional({
     description: '使用的模型名称',
     example: 'gpt-3.5-turbo',
   })

@@ -4,9 +4,10 @@ import { ConfigModule } from '@nestjs/config';
 import { AiController } from './ai.controller';
 import { AiService } from './models/openai/ai.service';
 import { KimiService } from './models/kimi/kimi.service';
+import { UsersModule } from '../users/users.module';
 
 @Module({
-  imports: [HttpModule, ConfigModule],
+  imports: [HttpModule, ConfigModule, UsersModule],
   controllers: [AiController],
   providers: [AiService, KimiService],
 })

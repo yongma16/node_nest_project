@@ -1,10 +1,13 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { randomUUID } from 'crypto';
 import { AiService } from './models/openai/ai.service';
 import { KimiService } from './models/kimi/kimi.service';
 import { ChatCompletionRequestDto } from './models/openai/dto/chat-completion.dto';
 import { KimiChatRequestDto, KimiChatResponseDto } from './models/kimi/dto/kimi-chat.dto';
 import { MultiTurnChatRequestDto, MultiTurnChatResponseDto } from './models/kimi/dto/multi-turn-chat.dto';
+import { KimiImageChatRequestDto } from './models/kimi/dto/kimi-image-chat.dto';
+import { KimiImageUrlChatRequestDto } from './models/kimi/dto/kimi-image-url-chat.dto';
 import { UsersService } from '../users/users.service';
 
 @ApiTags('AI Chat')
@@ -20,46 +23,55 @@ export class AiController {
   @ApiOperation({ summary: 'Chat Completions (通用)' })
   @ApiResponse({ status: 200, description: 'Success' })
   async chatCompletions(@Body() body: ChatCompletionRequestDto): Promise<unknown> {
+    const sessionId = this.resolveSessionId(body.sessionId);
     const startTime = Date.now();
     const response = (await this.aiService.proxyChatCompletion(body)) as Record<string, unknown>;
     const elapsedMs = Date.now() - startTime;
 
     await this.recordChatIfPossible({
       userId: body.userId,
-      sessionId: body.sessionId ?? this.toStringValue(response.id),
+      sessionId,
       userQueryContent: this.extractLastUserMessageContent(body.messages),
       aiReplyContent: this.extractOpenAiReply(response),
       aiModelType: this.toStringValue(response.model) || body.model || 'unknown',
       responseTimeMs: elapsedMs,
     });
 
-    return response;
+    return {
+      ...response,
+      sessionId,
+    };
   }
 
   @Post('kimi/chat')
   @ApiOperation({ summary: 'Kimi Chat Completions (单次对话)' })
   @ApiResponse({ status: 200, description: 'Success', type: KimiChatResponseDto })
   async kimiChat(@Body() body: KimiChatRequestDto): Promise<KimiChatResponseDto> {
+    const sessionId = this.resolveSessionId(body.sessionId);
     const startTime = Date.now();
     const response = await this.kimiService.chatCompletion(body);
     const elapsedMs = Date.now() - startTime;
 
     await this.recordChatIfPossible({
       userId: body.userId,
-      sessionId: body.sessionId ?? response.id,
+      sessionId,
       userQueryContent: this.extractLastUserMessageContent(body.messages),
       aiReplyContent: response.choices?.[0]?.message?.content ?? '',
       aiModelType: response.model || body.model,
       responseTimeMs: elapsedMs,
     });
 
-    return response;
+    return {
+      ...response,
+      sessionId,
+    };
   }
 
   @Post('kimi/multi-turn-chat')
   @ApiOperation({ summary: 'Kimi Multi-turn Chat (多轮对话)' })
   @ApiResponse({ status: 200, description: 'Success', type: MultiTurnChatResponseDto })
   async kimiMultiTurnChat(@Body() body: MultiTurnChatRequestDto): Promise<MultiTurnChatResponseDto> {
+    const sessionId = this.resolveSessionId(body.sessionId);
     const startTime = Date.now();
     const { response, updatedHistory } = await this.kimiService.multiTurnChat(
       body.message,
@@ -70,6 +82,7 @@ export class AiController {
     const elapsedMs = Date.now() - startTime;
 
     const result: MultiTurnChatResponseDto = {
+      sessionId,
       reply: response.choices[0]?.message?.content || '',
       history: updatedHistory,
       usage: {
@@ -83,7 +96,7 @@ export class AiController {
 
     await this.recordChatIfPossible({
       userId: body.userId,
-      sessionId: body.sessionId ?? response.id,
+      sessionId,
       userQueryContent: body.message,
       aiReplyContent: result.reply,
       aiModelType: result.model || body.model || 'unknown',
@@ -91,6 +104,54 @@ export class AiController {
     });
 
     return result;
+  }
+
+  @Post('kimi/image-chat')
+  @ApiOperation({ summary: 'Kimi 图片识别对话' })
+  @ApiResponse({ status: 200, description: 'Success', type: KimiChatResponseDto })
+  async kimiImageChat(@Body() body: KimiImageChatRequestDto): Promise<KimiChatResponseDto> {
+    const sessionId = this.resolveSessionId(body.sessionId);
+    const startTime = Date.now();
+    const response = await this.kimiService.imageChatCompletion(body);
+    const elapsedMs = Date.now() - startTime;
+
+    await this.recordChatIfPossible({
+      userId: body.userId,
+      sessionId,
+      userQueryContent: body.prompt,
+      aiReplyContent: response.choices?.[0]?.message?.content ?? '',
+      aiModelType: response.model || body.model || 'kimi-k2.5-turbo-preview',
+      responseTimeMs: elapsedMs,
+    });
+
+    return {
+      ...response,
+      sessionId,
+    };
+  }
+
+  @Post('kimi/image-chat-by-url')
+  @ApiOperation({ summary: 'Kimi 图片 URL 识别对话（后端自动转 base64）' })
+  @ApiResponse({ status: 200, description: 'Success', type: KimiChatResponseDto })
+  async kimiImageChatByUrl(@Body() body: KimiImageUrlChatRequestDto): Promise<KimiChatResponseDto> {
+    const sessionId = this.resolveSessionId(body.sessionId);
+    const startTime = Date.now();
+    const response = await this.kimiService.imageUrlChatCompletion(body);
+    const elapsedMs = Date.now() - startTime;
+
+    await this.recordChatIfPossible({
+      userId: body.userId,
+      sessionId,
+      userQueryContent: body.prompt,
+      aiReplyContent: response.choices?.[0]?.message?.content ?? '',
+      aiModelType: response.model || body.model || 'kimi-k2.5-turbo-preview',
+      responseTimeMs: elapsedMs,
+    });
+
+    return {
+      ...response,
+      sessionId,
+    };
   }
 
   @Get('kimi/models')
@@ -114,6 +175,14 @@ export class AiController {
     };
   }
 
+  private resolveSessionId(sessionId?: string): string {
+    const trimmed = sessionId?.trim();
+    if (trimmed) {
+      return trimmed;
+    }
+    return `session_${randomUUID()}`;
+  }
+
   private async recordChatIfPossible(payload: {
     userId?: number;
     sessionId?: string;
@@ -126,7 +195,7 @@ export class AiController {
       return;
     }
 
-    const sessionId = payload.sessionId?.trim() || `session_${Date.now()}`;
+    const sessionId = payload.sessionId?.trim() || this.resolveSessionId();
     if (!payload.userQueryContent.trim() || !payload.aiReplyContent.trim()) {
       return;
     }

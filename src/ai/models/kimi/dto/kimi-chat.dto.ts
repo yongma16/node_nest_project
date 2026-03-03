@@ -25,6 +25,7 @@ export class KimiChatRequestDto {
       'moonshot-v1-32k',
       'moonshot-v1-128k',
       'kimi-k2-turbo-preview',
+      'kimi-k2.5',
       'kimi-k2.5-turbo-preview',
       'kimi-k2.5-pro-preview',
     ],
@@ -94,6 +95,9 @@ export class KimiChatRequestDto {
 }
 
 export class KimiChatResponseDto {
+  @ApiProperty({ description: '会话 ID（未传时由后端自动生成）' })
+  sessionId: string;
+
   @ApiProperty({ description: '响应 ID' })
   id: string;
 

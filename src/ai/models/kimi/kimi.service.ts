@@ -43,6 +43,7 @@ export class KimiService {
       throw new HttpException(`Invalid model. Supported models: ${this.validModels.join(', ')}`, 400);
     }
     const temperature = this.resolveTemperature(payload.model, payload.temperature);
+    const topP = this.resolveTopP(payload.model, payload.top_p);
 
     try {
       this.logger.log(`Calling Kimi API with model: ${payload.model}`);
@@ -56,7 +57,7 @@ export class KimiService {
             temperature,
             max_tokens: payload.max_tokens ?? 1024,
             stream: payload.stream ?? false,
-            top_p: payload.top_p ?? 1,
+            top_p: topP,
           },
           {
             timeout: timeoutMs,
@@ -105,6 +106,7 @@ export class KimiService {
       throw new HttpException('prompt is required', 400);
     }
     const temperature = this.resolveTemperature(model, payload.temperature);
+    const topP = this.resolveTopP(model, payload.top_p);
 
     const imageDataUrl = this.buildImageDataUrl(payload.imageBase64, payload.imageMimeType);
 
@@ -138,7 +140,7 @@ export class KimiService {
             ],
             temperature,
             max_tokens: payload.max_tokens ?? 1024,
-            top_p: payload.top_p ?? 1,
+            top_p: topP,
             stream: false,
           },
           {
@@ -362,5 +364,13 @@ export class KimiService {
       return 1;
     }
     return inputTemperature ?? 0.3;
+  }
+
+  private resolveTopP(model: string, inputTopP?: number): number {
+    // kimi-k2.5 当前仅支持 top_p=0.95
+    if (model === 'kimi-k2.5') {
+      return 0.95;
+    }
+    return inputTopP ?? 1;
   }
 }

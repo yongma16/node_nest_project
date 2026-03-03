@@ -14,27 +14,27 @@ export class KimiImageUrlChatRequestDto {
   sessionId?: string;
 
   @ApiPropertyOptional({
-    description: 'Kimi 模型名称，默认 kimi-k2.5-turbo-preview',
+    description: 'Kimi 模型名称，默认 kimi-k2.5',
     enum: ['kimi-k2-turbo-preview', 'kimi-k2.5', 'kimi-k2.5-turbo-preview', 'kimi-k2.5-pro-preview'],
-    example: 'kimi-k2.5-turbo-preview',
+    example: 'kimi-k2.5',
   })
   model?: string;
 
   @ApiPropertyOptional({
     description: '系统提示词',
-    example: '你是 Kimi。',
+    example: `你是“html邮件架构师”，一位专注于制作高保真、响应式 HTML 营销邮件的 UI/UX 设计专家及邮件开发人员，根据用户上传图片解析内容生成html邮件代码。`,
   })
   systemPrompt?: string;
 
   @ApiProperty({
     description: '图片公网 URL（http/https）',
-    example: 'https://example.com/demo.png',
+    example: 'https://storage.googleapis.com/smartlink-gcp-public-resources/test/11/template_upload/202602/%E9%97%AE%E5%8D%B7TW_6317816616dd1dfe.jpg',
   })
   imageUrl!: string;
 
   @ApiProperty({
     description: '文本指令',
-    example: '请描述图片的内容。',
+    example: '图片转html邮件代码',
   })
   prompt!: string;
 
@@ -49,8 +49,8 @@ export class KimiImageUrlChatRequestDto {
   @ApiPropertyOptional({
     description: '最大生成 token 数',
     minimum: 1,
-    maximum: 4096,
-    example: 1024,
+    maximum: 8192,
+    example: 8192,
   })
   max_tokens?: number;
 

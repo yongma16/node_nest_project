@@ -1,98 +1,203 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# AI Proxy Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+基于 NestJS 的 AI 代理后端服务，支持多种 AI 模型接入，包括 OpenAI 和 Kimi (Moonshot AI)。
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## 功能特性
 
-## Description
+- 🤖 **多 AI 模型支持**: OpenAI GPT 系列、Kimi (Moonshot AI)
+- 💬 **多轮对话**: 支持上下文记忆的连续对话
+- 🔄 **智能历史管理**: 自动管理对话历史，避免 token 超限
+- 📝 **完整的 API 文档**: 集成 Swagger 文档
+- 🛡️ **错误处理**: 完善的错误处理和日志记录
+- ⚡ **高性能**: 基于 NestJS 框架，支持高并发
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 快速开始
 
-## Project setup
+### 1. 安装依赖
 
 ```bash
-$ npm install
+npm install
 ```
 
-## Compile and run the project
+### 2. 环境配置
+
+复制 `.env.example` 到 `.env` 并配置相关参数：
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+cp .env.example .env
 ```
 
-## Run tests
+编辑 `.env` 文件：
+
+```env
+# AI 通用配置
+AI_BASE_URL=https://api.openai.com/v1
+AI_API_KEY=your_openai_api_key_here
+AI_MODEL=gpt-4o-mini
+AI_TIMEOUT_MS=60000
+
+# Kimi API 配置
+KIMI_API_KEY=your_kimi_api_key_here
+KIMI_TIMEOUT_MS=60000
+
+# 应用配置
+PORT=3000
+NODE_ENV=development
+```
+
+### 3. 获取 API Keys
+
+#### OpenAI API Key
+1. 访问 [OpenAI Platform](https://platform.openai.com/api-keys)
+2. 创建新的 API Key
+
+#### Kimi API Key
+1. 访问 [Moonshot AI 平台](https://platform.moonshot.cn/console)
+2. 注册账号并登录
+3. 在 "API Key 管理" 中创建新的 API Key
+
+### 4. 启动服务
 
 ```bash
-# unit tests
-$ npm run test
+# 开发模式
+npm run start:dev
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+# 生产模式
+npm run start:prod
 ```
 
-## Deployment
+服务将在 `http://localhost:3000` 启动。
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## API 文档
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+启动服务后，访问 `http://localhost:3000/api` 查看完整的 Swagger API 文档。
+
+## 主要 API 端点
+
+### 通用 Chat Completions
+```
+POST /v1/chat/completions
+```
+
+### Kimi 专用接口
+
+#### 单次对话
+```
+POST /v1/kimi/chat
+```
+
+#### 多轮对话
+```
+POST /v1/kimi/multi-turn-chat
+```
+
+#### 获取可用模型
+```
+GET /v1/kimi/models
+```
+
+## 使用示例
+
+详细的使用示例请查看 [examples/kimi-usage.md](./examples/kimi-usage.md)
+
+### 快速示例 - 多轮对话
+
+```typescript
+// 发送第一条消息
+const response1 = await fetch('http://localhost:3000/v1/kimi/multi-turn-chat', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    message: '你好，我是小明',
+    model: 'moonshot-v1-8k'
+  })
+});
+
+const data1 = await response1.json();
+console.log('AI:', data1.reply);
+
+// 发送第二条消息（带历史记录）
+const response2 = await fetch('http://localhost:3000/v1/kimi/multi-turn-chat', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    message: '我刚才说我叫什么名字？',
+    history: data1.history,
+    model: 'moonshot-v1-8k'
+  })
+});
+
+const data2 = await response2.json();
+console.log('AI:', data2.reply); // AI 会记住你叫小明
+```
+
+## 项目结构
+
+```
+src/
+├── ai/                     # AI 相关模块
+│   ├── dto/               # 数据传输对象
+│   │   ├── chat-completion.dto.ts
+│   │   ├── kimi-chat.dto.ts
+│   │   └── multi-turn-chat.dto.ts
+│   ├── ai.controller.ts   # 控制器
+│   ├── ai.service.ts      # 通用 AI 服务
+│   ├── kimi.service.ts    # Kimi 专用服务
+│   └── ai.module.ts       # 模块配置
+├── app.controller.ts
+├── app.module.ts
+└── main.ts
+```
+
+## 开发
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# 开发模式
+npm run start:dev
+
+# 代码格式化
+npm run format
+
+# 代码检查
+npm run lint
+
+# 运行测试
+npm run test
+
+# 构建
+npm run build
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## 部署
 
-## Resources
+```bash
+# 构建生产版本
+npm run build
 
-Check out a few resources that may come in handy when working with NestJS:
+# 启动生产服务
+npm run start:prod
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## 支持的模型
 
-## Support
+### OpenAI 模型
+- gpt-4o
+- gpt-4o-mini
+- gpt-4-turbo
+- gpt-3.5-turbo
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+### Kimi 模型
+- moonshot-v1-8k (8K tokens)
+- moonshot-v1-32k (32K tokens)
+- moonshot-v1-128k (128K tokens)
 
-## Stay in touch
+## 注意事项
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+1. **API Key 安全**: 请妥善保管 API Keys，不要提交到版本控制系统
+2. **费用控制**: AI API 按使用量计费，建议设置合理的使用限制
+3. **错误处理**: 生产环境请添加适当的错误处理和监控
+4. **性能优化**: 根据实际需求调整超时时间和并发限制
 
-## License
+## 许可证
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+[MIT licensed](LICENSE).

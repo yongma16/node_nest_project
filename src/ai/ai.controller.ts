@@ -1,10 +1,14 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Body, Controller, Get, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiConsumes } from '@nestjs/swagger';
 import { randomUUID } from 'crypto';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AiService } from './models/openai/ai.service';
 import { KimiService } from './models/kimi/kimi.service';
 import { ChatCompletionRequestDto } from './models/openai/dto/chat-completion.dto';
 import { StepfunChatRequestDto } from './models/stepfun/dto/stepfun-chat.dto';
+import { StepfunImageEditRequestDto } from './models/stepfun/dto/stepfun-image-edit.dto';
+import { StepfunImageGenerateRequestDto } from './models/stepfun/dto/stepfun-image-generate.dto';
+import { StepfunImageGenerateResponseDto } from './models/stepfun/dto/stepfun-image-generate-response.dto';
 import { KimiChatRequestDto, KimiChatResponseDto } from './models/kimi/dto/kimi-chat.dto';
 import { MultiTurnChatRequestDto, MultiTurnChatResponseDto } from './models/kimi/dto/multi-turn-chat.dto';
 import { KimiImageChatRequestDto } from './models/kimi/dto/kimi-image-chat.dto';
@@ -92,6 +96,107 @@ export class AiController {
       ...response,
       sessionId,
     };
+  }
+
+  @Post('stepfun/images/edit')
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiOperation({ summary: 'StepFun 图片编辑' })
+  @ApiResponse({ status: 200, description: 'Success' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['image', 'prompt'],
+      properties: {
+        image: {
+          type: 'string',
+          format: 'binary',
+          description: '待编辑图片文件',
+        },
+        userId: {
+          type: 'number',
+          example: 1,
+        },
+        sessionId: {
+          type: 'string',
+          example: 'session_20260303_003',
+        },
+        model: {
+          type: 'string',
+          example: 'step-1x-edit',
+        },
+        prompt: {
+          type: 'string',
+          example: '变成一只英短猫',
+        },
+        cfg_scale: {
+          type: 'number',
+          example: 10,
+        },
+        steps: {
+          type: 'integer',
+          example: 20,
+        },
+        seed: {
+          type: 'integer',
+          example: 1,
+        },
+        response_format: {
+          type: 'string',
+          enum: ['url', 'b64_json'],
+          example: 'url',
+        },
+      },
+    },
+  })
+  async stepfunImageEdit(
+    @UploadedFile() image: Express.Multer.File,
+    @Body() body: StepfunImageEditRequestDto,
+  ): Promise<unknown> {
+    const sessionId = this.resolveSessionId(body.sessionId);
+    const startTime = Date.now();
+    const response = (await this.stepfunService.imageEdit(body, image)) as Record<string, unknown>;
+    const elapsedMs = Date.now() - startTime;
+
+    await this.recordChatIfPossible({
+      userId: body.userId,
+      sessionId,
+      userQueryContent: body.prompt || 'image_edit',
+      aiReplyContent: this.toStringValue((response as { data?: unknown }).data),
+      aiModelType: this.toStringValue(response.model) || body.model || 'step-1x-edit',
+      responseTimeMs: elapsedMs,
+    });
+
+    return {
+      ...response,
+      sessionId,
+    };
+  }
+
+  @Post('stepfun/images/generate')
+  @ApiOperation({ summary: 'StepFun 文生图' })
+  @ApiResponse({ status: 200, description: 'Success', type: StepfunImageGenerateResponseDto })
+  async stepfunImageGenerate(
+    @Body() body: StepfunImageGenerateRequestDto,
+  ): Promise<StepfunImageGenerateResponseDto> {
+    const sessionId = this.resolveSessionId(body.sessionId);
+    const startTime = Date.now();
+    const response = (await this.stepfunService.imageGenerate(body)) as Record<string, unknown>;
+    const elapsedMs = Date.now() - startTime;
+
+    await this.recordChatIfPossible({
+      userId: body.userId,
+      sessionId,
+      userQueryContent: body.prompt || 'image_generate',
+      aiReplyContent: this.toStringValue((response as { data?: unknown }).data),
+      aiModelType: this.toStringValue(response.model) || body.model || 'step-1x-medium',
+      responseTimeMs: elapsedMs,
+    });
+
+    return {
+      ...response,
+      sessionId,
+    } as StepfunImageGenerateResponseDto;
   }
 
   @Post('kimi/multi-turn-chat')

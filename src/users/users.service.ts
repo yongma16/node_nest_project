@@ -60,27 +60,34 @@ export class UsersService {
     };
   }
 
-  async login(dto: LoginUserDto): Promise<{
+  /**
+   * 校验邮箱与密码，成功时更新 lastLoginAt 并返回用户信息，失败返回 null。
+   * 供 AuthService 登录并签发 JWT 使用。
+   */
+  async validateUser(
+    email: string,
+    password: string,
+  ): Promise<{
     id: number;
     name: string;
     email: string;
     createdAt: Date;
     lastLoginAt: Date | null;
-  }> {
-    if (!dto.email?.trim() || !dto.password?.trim()) {
-      throw new BadRequestException('email and password are required');
+  } | null> {
+    if (!email?.trim() || !password?.trim()) {
+      return null;
     }
 
     const user = await this.aiUserRepository.findOne({
-      where: { email: dto.email.trim().toLowerCase() },
+      where: { email: email.trim().toLowerCase() },
     });
     if (!user) {
-      throw new UnauthorizedException('invalid email or password');
+      return null;
     }
 
-    const isValid = await this.verifyPassword(dto.password, user.password);
+    const isValid = await this.verifyPassword(password, user.password);
     if (!isValid) {
-      throw new UnauthorizedException('invalid email or password');
+      return null;
     }
 
     user.lastLoginAt = new Date();
@@ -92,6 +99,25 @@ export class UsersService {
       createdAt: saved.createdAt,
       lastLoginAt: saved.lastLoginAt,
     };
+  }
+
+  async login(dto: LoginUserDto): Promise<{
+    id: number;
+    name: string;
+    email: string;
+    createdAt: Date;
+    lastLoginAt: Date | null;
+  }> {
+    if (!dto.email?.trim() || !dto.password?.trim()) {
+      throw new BadRequestException('email and password are required');
+    }
+
+    const user = await this.validateUser(dto.email, dto.password);
+    if (!user) {
+      throw new UnauthorizedException('invalid email or password');
+    }
+
+    return user;
   }
 
   async createChatRecord(dto: CreateChatRecordDto): Promise<{

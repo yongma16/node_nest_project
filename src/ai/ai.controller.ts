@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiConsumes } from '@nestjs/swagger';
+import { Body, Controller, Get, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiConsumes, ApiBearerAuth } from '@nestjs/swagger';
 import { randomUUID } from 'crypto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AiService } from './models/openai/ai.service';
@@ -15,9 +15,19 @@ import { KimiImageChatRequestDto } from './models/kimi/dto/kimi-image-chat.dto';
 import { KimiImageUrlChatRequestDto } from './models/kimi/dto/kimi-image-url-chat.dto';
 import { StepfunService } from './models/stepfun/stepfun.service';
 import { UsersService } from '../users/users.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+
+/** 当前登录用户（由 JWT 解析），与 auth 模块 JwtUser 一致 */
+interface CurrentUserPayload {
+  userId: number;
+  email: string;
+}
 
 @ApiTags('AI Chat')
+@ApiBearerAuth()
 @Controller('v1')
+@UseGuards(JwtAuthGuard)
 export class AiController {
   constructor(
     private readonly aiService: AiService,
@@ -29,14 +39,17 @@ export class AiController {
   @Post('chat/completions')
   @ApiOperation({ summary: 'Chat Completions (通用)' })
   @ApiResponse({ status: 200, description: 'Success' })
-  async chatCompletions(@Body() body: ChatCompletionRequestDto): Promise<unknown> {
+  async chatCompletions(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() body: ChatCompletionRequestDto,
+  ): Promise<unknown> {
     const sessionId = this.resolveSessionId(body.sessionId);
     const startTime = Date.now();
     const response = (await this.aiService.proxyChatCompletion(body)) as Record<string, unknown>;
     const elapsedMs = Date.now() - startTime;
 
     await this.recordChatIfPossible({
-      userId: body.userId,
+      userId: user.userId,
       sessionId,
       userQueryContent: this.extractLastUserMessageContent(body.messages),
       aiReplyContent: this.extractOpenAiReply(response),
@@ -53,14 +66,17 @@ export class AiController {
   @Post('kimi/chat')
   @ApiOperation({ summary: 'Kimi Chat Completions (单次对话)' })
   @ApiResponse({ status: 200, description: 'Success', type: KimiChatResponseDto })
-  async kimiChat(@Body() body: KimiChatRequestDto): Promise<KimiChatResponseDto> {
+  async kimiChat(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() body: KimiChatRequestDto,
+  ): Promise<KimiChatResponseDto> {
     const sessionId = this.resolveSessionId(body.sessionId);
     const startTime = Date.now();
     const response = await this.kimiService.chatCompletion(body);
     const elapsedMs = Date.now() - startTime;
 
     await this.recordChatIfPossible({
-      userId: body.userId,
+      userId: user.userId,
       sessionId,
       userQueryContent: this.extractLastUserMessageContent(body.messages),
       aiReplyContent: response.choices?.[0]?.message?.content ?? '',
@@ -77,14 +93,17 @@ export class AiController {
   @Post('stepfun/chat')
   @ApiOperation({ summary: 'StepFun Chat Completions (阶跃星辰对话)' })
   @ApiResponse({ status: 200, description: 'Success' })
-  async stepfunChat(@Body() body: StepfunChatRequestDto): Promise<unknown> {
+  async stepfunChat(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() body: StepfunChatRequestDto,
+  ): Promise<unknown> {
     const sessionId = this.resolveSessionId(body.sessionId);
     const startTime = Date.now();
     const response = (await this.stepfunService.chatCompletion(body)) as Record<string, unknown>;
     const elapsedMs = Date.now() - startTime;
 
     await this.recordChatIfPossible({
-      userId: body.userId,
+      userId: user.userId,
       sessionId,
       userQueryContent: this.extractLastUserMessageContent(body.messages),
       aiReplyContent: this.extractOpenAiReply(response),
@@ -150,6 +169,7 @@ export class AiController {
     },
   })
   async stepfunImageEdit(
+    @CurrentUser() user: CurrentUserPayload,
     @UploadedFile() image: Express.Multer.File,
     @Body() body: StepfunImageEditRequestDto,
   ): Promise<unknown> {
@@ -159,7 +179,7 @@ export class AiController {
     const elapsedMs = Date.now() - startTime;
 
     await this.recordChatIfPossible({
-      userId: body.userId,
+      userId: user.userId,
       sessionId,
       userQueryContent: body.prompt || 'image_edit',
       aiReplyContent: this.toStringValue((response as { data?: unknown }).data),
@@ -177,6 +197,7 @@ export class AiController {
   @ApiOperation({ summary: 'StepFun 文生图' })
   @ApiResponse({ status: 200, description: 'Success', type: StepfunImageGenerateResponseDto })
   async stepfunImageGenerate(
+    @CurrentUser() user: CurrentUserPayload,
     @Body() body: StepfunImageGenerateRequestDto,
   ): Promise<StepfunImageGenerateResponseDto> {
     const sessionId = this.resolveSessionId(body.sessionId);
@@ -185,7 +206,7 @@ export class AiController {
     const elapsedMs = Date.now() - startTime;
 
     await this.recordChatIfPossible({
-      userId: body.userId,
+      userId: user.userId,
       sessionId,
       userQueryContent: body.prompt || 'image_generate',
       aiReplyContent: this.toStringValue((response as { data?: unknown }).data),
@@ -202,7 +223,10 @@ export class AiController {
   @Post('kimi/multi-turn-chat')
   @ApiOperation({ summary: 'Kimi Multi-turn Chat (多轮对话)' })
   @ApiResponse({ status: 200, description: 'Success', type: MultiTurnChatResponseDto })
-  async kimiMultiTurnChat(@Body() body: MultiTurnChatRequestDto): Promise<MultiTurnChatResponseDto> {
+  async kimiMultiTurnChat(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() body: MultiTurnChatRequestDto,
+  ): Promise<MultiTurnChatResponseDto> {
     const sessionId = this.resolveSessionId(body.sessionId);
     const startTime = Date.now();
     const { response, updatedHistory } = await this.kimiService.multiTurnChat(
@@ -227,7 +251,7 @@ export class AiController {
     };
 
     await this.recordChatIfPossible({
-      userId: body.userId,
+      userId: user.userId,
       sessionId,
       userQueryContent: body.message,
       aiReplyContent: result.reply,
@@ -241,14 +265,17 @@ export class AiController {
   @Post('kimi/image-chat')
   @ApiOperation({ summary: 'Kimi 图片识别对话' })
   @ApiResponse({ status: 200, description: 'Success', type: KimiChatResponseDto })
-  async kimiImageChat(@Body() body: KimiImageChatRequestDto): Promise<KimiChatResponseDto> {
+  async kimiImageChat(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() body: KimiImageChatRequestDto,
+  ): Promise<KimiChatResponseDto> {
     const sessionId = this.resolveSessionId(body.sessionId);
     const startTime = Date.now();
     const response = await this.kimiService.imageChatCompletion(body);
     const elapsedMs = Date.now() - startTime;
 
     await this.recordChatIfPossible({
-      userId: body.userId,
+      userId: user.userId,
       sessionId,
       userQueryContent: body.prompt,
       aiReplyContent: response.choices?.[0]?.message?.content ?? '',
@@ -265,14 +292,17 @@ export class AiController {
   @Post('kimi/image-chat-by-url')
   @ApiOperation({ summary: 'Kimi 图片 URL 识别对话（后端自动转 base64）' })
   @ApiResponse({ status: 200, description: 'Success', type: KimiChatResponseDto })
-  async kimiImageChatByUrl(@Body() body: KimiImageUrlChatRequestDto): Promise<KimiChatResponseDto> {
+  async kimiImageChatByUrl(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() body: KimiImageUrlChatRequestDto,
+  ): Promise<KimiChatResponseDto> {
     const sessionId = this.resolveSessionId(body.sessionId);
     const startTime = Date.now();
     const response = await this.kimiService.imageUrlChatCompletion(body);
     const elapsedMs = Date.now() - startTime;
 
     await this.recordChatIfPossible({
-      userId: body.userId,
+      userId: user.userId,
       sessionId,
       userQueryContent: body.prompt,
       aiReplyContent: response.choices?.[0]?.message?.content ?? '',

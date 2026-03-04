@@ -16,6 +16,7 @@ async function bootstrap() {
     .setTitle('AI Proxy Backend')
     .setDescription('AI 代理后端 API')
     .setVersion('1.0')
+    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'JWT')
     .build();
   
   const document = SwaggerModule.createDocument(app, config);

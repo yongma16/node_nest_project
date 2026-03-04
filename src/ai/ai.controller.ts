@@ -17,6 +17,7 @@ import { StepfunService } from './models/stepfun/stepfun.service';
 import { UsersService } from '../users/users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 
 /** 当前登录用户（由 JWT 解析），与 auth 模块 JwtUser 一致 */
 interface CurrentUserPayload {
@@ -262,6 +263,32 @@ export class AiController {
     return result;
   }
 
+  @Public()
+  @Post('open-chat/multi-turn-chat')
+  @ApiOperation({ summary: '开放多轮对话（免登录、不落库，按 Kimi 格式返回）' })
+  @ApiResponse({ status: 200, description: 'Success', type: MultiTurnChatResponseDto })
+  async openChatMultiTurn(@Body() body: MultiTurnChatRequestDto): Promise<MultiTurnChatResponseDto> {
+    const sessionId = this.resolveSessionId(body.sessionId);
+    const { response, updatedHistory } = await this.kimiService.multiTurnChat(
+      body.message,
+      body.history || [],
+      body.model || 'moonshot-v1-8k',
+      body.systemPrompt,
+    );
+    return {
+      sessionId,
+      reply: response.choices[0]?.message?.content || '',
+      history: updatedHistory,
+      usage: {
+        promptTokens: response.usage.prompt_tokens,
+        completionTokens: response.usage.completion_tokens,
+        totalTokens: response.usage.total_tokens,
+      },
+      model: response.model,
+      responseId: response.id,
+    };
+  }
+
   @Post('kimi/image-chat')
   @ApiOperation({ summary: 'Kimi 图片识别对话' })
   @ApiResponse({ status: 200, description: 'Success', type: KimiChatResponseDto })
@@ -310,6 +337,19 @@ export class AiController {
       responseTimeMs: elapsedMs,
     });
 
+    return {
+      ...response,
+      sessionId,
+    };
+  }
+
+  @Public()
+  @Post('open-chat/image-chat-by-url')
+  @ApiOperation({ summary: '开放图片 URL 识别对话（免登录、不落库，按 Kimi 格式返回）' })
+  @ApiResponse({ status: 200, description: 'Success', type: KimiChatResponseDto })
+  async openChatImageByUrl(@Body() body: KimiImageUrlChatRequestDto): Promise<KimiChatResponseDto> {
+    const sessionId = this.resolveSessionId(body.sessionId);
+    const response = await this.kimiService.imageUrlChatCompletion(body);
     return {
       ...response,
       sessionId,

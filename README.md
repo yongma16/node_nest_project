@@ -131,6 +131,27 @@ const data2 = await response2.json();
 console.log('AI:', data2.reply); // AI 会记住你叫小明
 ```
 
+## 多轮对话与 sessionId
+
+- **AiChatRecord** 每条记录包含 `userId`、`sessionId`、`userQueryContent`、`aiReplyContent` 等，按 **userId + sessionId** 可查询同一会话下的所有轮次，用于多轮对话的 history 查找与组装。
+- 多轮请求示例（需在 Header 中携带登录后的 JWT）：
+  ```json
+  {
+    "userId": 1,
+    "sessionId": "session_20260303_001",
+    "message": "你好，我想了解一下人工智能的发展历史",
+    "history": [
+      { "role": "user", "content": "你是谁？" },
+      { "role": "assistant", "content": "我是 Kimi，由 Moonshot AI 提供的人工智能助手。" }
+    ],
+    "model": "kimi-k2-turbo-preview",
+    "systemPrompt": "你是一个专业的技术顾问...",
+    "temperature": 0.3,
+    "maxTokens": 1024
+  }
+  ```
+- 服务端在每次对话后会按 `sessionId` 写入 AiChatRecord；前端或客户端可用 **GET /v1/users/chat-records/history?userId=1&sessionId=session_20260303_001** 拉取该会话历史，将返回的 `userQueryContent` / `aiReplyContent` 组装成上述 `history` 数组再发起下一轮请求。
+
 ## 项目结构
 
 ```

@@ -4,7 +4,10 @@ export class CreateChatRecordDto {
   @ApiProperty({ example: 1, description: '用户 ID' })
   userId!: number;
 
-  @ApiProperty({ example: 'session_20260303_001', description: '用户会话 ID' })
+  @ApiProperty({
+    example: 'session_20260303_001',
+    description: '会话 ID，与 userId 一起用于多轮对话数据查找与 history 组装',
+  })
   sessionId!: string;
 
   @ApiProperty({ example: '请帮我总结这段文本', description: '用户查询内容' })
